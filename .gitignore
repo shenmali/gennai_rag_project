@@ -1,5 +1,4 @@
-# Claude Code configuration - DO NOT COMMIT
-CLAUDE.md
+
 
 # Python
 __pycache__/
@@ -32,6 +31,9 @@ env/
 ENV/
 env.bak/
 venv.bak/
+.env
+*.env
+.env.*
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -81,3 +83,18 @@ models/
 # Logs
 *.log
 logs/
+
+# Code configuration - DO NOT COMMIT
+*CLAUDE*
+*OPENAI*
+*AZURE*
+*AGENTS*
+*DEPLOYMENT**
+*API_KEY*
+*API-KEY*
+*SECRET**
+*PASSWORD*
+*TOKEN*
+*ACCESS-KEY*
+*CONFIG**
+*LOCAL-SETTINGS*

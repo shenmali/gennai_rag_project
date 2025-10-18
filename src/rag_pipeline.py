@@ -6,10 +6,12 @@ Vector database'den ilgili dokümanları bulur ve Gemini API ile cevap üretir.
 """
 
 import os
+import socket
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
 import google.generativeai as genai
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import FakeEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain.schema import Document
 import logging
@@ -35,7 +37,11 @@ class MedicalRAGSystem:
         self,
         persist_directory: str = "chroma_db",
         embedding_model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-        gemini_model: str = "gemini-pro"
+        gemini_model: str = "gemini-2.5-flash",
+        embeddings=None,
+        vectorstore: Optional[Chroma] = None,
+        model=None,
+        allow_empty_vectorstore: bool = True
     ):
         """
         RAG sistemini başlat
@@ -46,9 +52,17 @@ class MedicalRAGSystem:
             gemini_model: Kullanılacak Gemini model
         """
         self.persist_directory = persist_directory
-        self.gemini_model = gemini_model
+        self.gemini_model = self._resolve_model_name(gemini_model)
+        self.embedding_model_name = embedding_model_name
 
-        # Gemini API ayarla
+        self.model = model or self._configure_model(self.gemini_model)
+        self.embeddings = embeddings or self._load_embeddings(embedding_model_name)
+
+        # Vector database yükle veya yeni bir tane oluştur
+        self.vectorstore = vectorstore or self._load_vectorstore(allow_empty=allow_empty_vectorstore)
+
+    def _configure_model(self, gemini_model: str):
+        """Gemini modelini hazırla."""
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
             raise ValueError(
@@ -57,27 +71,54 @@ class MedicalRAGSystem:
             )
 
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(gemini_model)
         logger.info(f"Gemini model yüklendi: {gemini_model}")
+        return genai.GenerativeModel(gemini_model)
 
-        # Embedding modelini yükle
+    def _resolve_model_name(self, default_model: str) -> str:
+        """Gemini model adını normalize et, env override'ını uygula."""
+        override = os.getenv("GEMINI_MODEL")
+        model_name = override or default_model
+
+        if model_name.startswith("models/"):
+            model_name = model_name.split("/", 1)[1]
+
+        return model_name
+
+    def _load_embeddings(self, embedding_model_name: str):
+        """Embedding modelini yükle, çevrimdışı durumda fake embedding'e düş."""
         logger.info(f"Embedding modeli yükleniyor: {embedding_model_name}")
-        self.embeddings = HuggingFaceEmbeddings(
-            model_name=embedding_model_name,
-            model_kwargs={'device': 'cpu'},
-            encode_kwargs={'normalize_embeddings': True}
-        )
-
-        # Vector database yükle
-        self.vectorstore = self._load_vectorstore()
-
-    def _load_vectorstore(self) -> Chroma:
-        """Var olan vector database'i yükle"""
-        if not os.path.exists(self.persist_directory):
-            raise FileNotFoundError(
-                f"Vector database bulunamadı: {self.persist_directory}\\n"
-                "Önce 'python src/build_vector_db.py' komutunu çalıştırın."
+        if not self._huggingface_reachable():
+            logger.warning("HuggingFace'e erişilemiyor. FakeEmbeddings ile devam ediliyor.")
+            return FakeEmbeddings(size=768)
+        try:
+            return HuggingFaceEmbeddings(
+                model_name=embedding_model_name,
+                model_kwargs={'device': 'cpu'},
+                encode_kwargs={'normalize_embeddings': True}
             )
+        except Exception as exc:  # pragma: no cover - network dependent
+            logger.warning(
+                "Embedding modeli yüklenemedi (%s). Basit FakeEmbeddings ile devam ediliyor.",
+                exc
+            )
+            return FakeEmbeddings(size=768)
+
+    def _load_vectorstore(self, allow_empty: bool) -> Chroma:
+        """Var olan vector database'i yükle veya boş bir tane oluştur."""
+        if not os.path.exists(self.persist_directory):
+            if not allow_empty:
+                raise FileNotFoundError(
+                    f"Vector database bulunamadı: {self.persist_directory}\\n"
+                    "Önce 'python src/build_vector_db.py' komutunu çalıştırın."
+                )
+            logger.warning(
+                "Vector database bulunamadı, hafızada yeni bir boş database oluşturuluyor.")
+            vectorstore = Chroma(
+                embedding_function=self.embeddings,
+                collection_name="medical-rag-temp"
+            )
+            logger.info("Vector database hafızada oluşturuldu")
+            return vectorstore
 
         logger.info(f"Vector database yükleniyor: {self.persist_directory}")
         vectorstore = Chroma(
@@ -86,6 +127,15 @@ class MedicalRAGSystem:
         )
         logger.info("Vector database başarıyla yüklendi")
         return vectorstore
+
+    @staticmethod
+    def _huggingface_reachable() -> bool:
+        """HuggingFace host'unun çözümlenebilirliğini kontrol et."""
+        try:
+            socket.getaddrinfo("huggingface.co", 443)
+            return True
+        except socket.gaierror:
+            return False
 
     def retrieve_context(
         self,
@@ -152,7 +202,7 @@ class MedicalRAGSystem:
             answer = response.text
         except Exception as e:
             logger.error(f"Gemini API hatası: {e}")
-            answer = "Üzgünüm, şu anda cevap üretirken bir hata oluştu. Lütfen tekrar deneyin."
+            answer = self._try_fallback_model(query, context_docs, prompt, include_sources, e)
 
         # Sonucu hazırla
         result = {
@@ -201,6 +251,28 @@ KULLANICI SORUSU:
 CEVAP:"""
 
         return prompt
+
+    def _try_fallback_model(self, query, context_docs, prompt, include_sources, original_error):
+        """Gemini hatalarında alternatif model ile tekrar dene."""
+        fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.0-flash")
+
+        if self.gemini_model == fallback_model:
+            return "Üzgünüm, şu anda cevap üretirken bir hata oluştu. Lütfen tekrar deneyin."
+
+        logger.info("Fallback Gemini modeli deneniyor: %s", fallback_model)
+        self.model = self._configure_model(fallback_model)
+        self.gemini_model = fallback_model
+
+        try:
+            response = self.model.generate_content(prompt)
+            return response.text
+        except Exception as fallback_error:
+            logger.error(
+                "Fallback modeliyle de hata: %s (ilk hata: %s)",
+                fallback_error,
+                original_error
+            )
+            return "Üzgünüm, şu anda cevap üretirken bir hata oluştu. Lütfen tekrar deneyin."
 
     def ask(
         self,

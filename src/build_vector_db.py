@@ -6,12 +6,15 @@ ChromaDB kullanarak dökümanları embedding'lere çevirir ve saklar.
 """
 
 import os
+import socket
 import pandas as pd
+from datasets import load_dataset
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import FakeEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain.schema import Document
-from typing import List
+from typing import List, Optional
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -32,26 +35,124 @@ class VectorDBBuilder:
         self,
         data_path: str = "data/processed_medical_qa.parquet",
         persist_directory: str = "chroma_db",
-        embedding_model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+        embedding_model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+        embeddings=None,
+        hf_token: Optional[str] = None
     ):
         self.data_path = data_path
         self.persist_directory = persist_directory
         self.embedding_model_name = embedding_model_name
+        self._embeddings = embeddings
+        self.hf_token = hf_token or os.getenv("HUGGINGFACEHUB_API_TOKEN")
 
-        # Embedding modelini yükle (Türkçe destekli multilingual model)
-        logger.info(f"Embedding modeli yükleniyor: {embedding_model_name}")
-        self.embeddings = HuggingFaceEmbeddings(
-            model_name=embedding_model_name,
-            model_kwargs={'device': 'cpu'},
-            encode_kwargs={'normalize_embeddings': True}
+    @property
+    def embeddings(self):
+        """Embedding nesnesini döndür (lazy load)."""
+        if self._embeddings is None:
+            logger.info(f"Embedding modeli yükleniyor: {self.embedding_model_name}")
+            if not self._huggingface_reachable():
+                logger.warning("HuggingFace'e erişilemiyor. FakeEmbeddings ile devam ediliyor.")
+                self._embeddings = FakeEmbeddings(size=768)
+                return self._embeddings
+            try:
+                self._embeddings = HuggingFaceEmbeddings(
+                    model_name=self.embedding_model_name,
+                    model_kwargs={'device': 'cpu'},
+                    encode_kwargs={'normalize_embeddings': True}
+                )
+            except Exception as exc:  # pragma: no cover - network dependent
+                logger.warning(
+                    "Embedding modeli yüklenemedi (%s). FakeEmbeddings ile devam ediliyor.",
+                    exc
+                )
+                self._embeddings = FakeEmbeddings(size=768)
+        return self._embeddings
+
+    @staticmethod
+    def _huggingface_reachable() -> bool:
+        """HuggingFace host'unun çözümlenebilirliğini kontrol et."""
+        try:
+            socket.getaddrinfo("huggingface.co", 443)
+            return True
+        except socket.gaierror:
+            return False
+
+    def download_and_prepare_data(self, save_path: Optional[str] = None) -> pd.DataFrame:
+        """
+        Huggingface'den veri setini indir ve hazırla
+
+        Args:
+            save_path: Veriyi kaydetmek için path (opsiyonel)
+
+        Returns:
+            Hazırlanmış DataFrame
+        """
+        logger.info("Veri seti Huggingface'den indiriliyor: alibayram/doktorsitesi")
+        logger.info("Bu işlem birkaç dakika sürebilir...")
+
+        # Veri setini indir
+        dataset = load_dataset(
+            "alibayram/doktorsitesi",
+            use_auth_token=self.hf_token if self.hf_token else None
         )
+        df = dataset['train'].to_pandas()
 
-    def load_data(self) -> pd.DataFrame:
-        """Veri setini yükle"""
-        logger.info(f"Veri yükleniyor: {self.data_path}")
-        df = pd.read_parquet(self.data_path)
-        logger.info(f"Toplam {len(df)} kayıt yüklendi")
-        return df
+        logger.info(f"Toplam {len(df)} kayıt indirildi")
+
+        # Veri temizleme
+        logger.info("Veri temizleme yapılıyor...")
+
+        # Eksik değerleri temizle
+        df_clean = df.dropna(subset=['question_content', 'question_answer']).copy()
+
+        # Soru ve cevap uzunluklarını hesapla
+        df_clean['question_length'] = df_clean['question_content'].str.len()
+        df_clean['answer_length'] = df_clean['question_answer'].str.len()
+
+        # Çok kısa soru/cevapları filtrele (en az 20 karakter)
+        df_clean = df_clean[
+            (df_clean['question_length'] >= 20) &
+            (df_clean['answer_length'] >= 20)
+        ]
+
+        logger.info(f"Temizleme sonrası: {len(df_clean)} kayıt")
+        logger.info(f"Kaldırılan kayıt: {len(df) - len(df_clean)}")
+
+        # Kaydet (eğer path verilmişse)
+        if save_path:
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            df_clean.to_parquet(save_path, index=False)
+            logger.info(f"Veri kaydedildi: {save_path}")
+
+        return df_clean
+
+    def load_data(self, auto_download: bool = True) -> pd.DataFrame:
+        """
+        Veri setini yükle (yoksa otomatik indir)
+
+        Args:
+            auto_download: Dosya yoksa otomatik indir
+
+        Returns:
+            DataFrame
+        """
+        # Eğer dosya mevcutsa direkt yükle
+        if os.path.exists(self.data_path):
+            logger.info(f"Veri yükleniyor: {self.data_path}")
+            df = pd.read_parquet(self.data_path)
+            logger.info(f"Toplam {len(df)} kayıt yüklendi")
+            return df
+
+        # Dosya yoksa ve auto_download açıksa indir
+        if auto_download:
+            logger.warning(f"Veri dosyası bulunamadı: {self.data_path}")
+            logger.info("Otomatik indirme başlatılıyor...")
+            return self.download_and_prepare_data(save_path=self.data_path)
+        else:
+            raise FileNotFoundError(
+                f"Veri dosyası bulunamadı: {self.data_path}\\n"
+                "auto_download=True yapın veya veriyi manuel olarak hazırlayın."
+            )
 
     def prepare_documents(self, df: pd.DataFrame, max_docs: int = None) -> List[Document]:
         """

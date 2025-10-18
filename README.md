@@ -56,7 +56,7 @@ Kullanıcı Sorusu → Embedding → Vector Search → İlgili Dokümanlar
 
 | Kategori | Teknoloji | Kullanım Amacı |
 |----------|-----------|----------------|
-| **LLM** | Google Gemini Pro API | Doğal dil cevap üretimi |
+| **LLM** | Google Gemini 2.5 Flash API | Doğal dil cevap üretimi |
 | **Embedding** | Sentence Transformers | Multilingual text embedding |
 | **Vector DB** | ChromaDB | Hızlı similarity search |
 | **Framework** | LangChain | RAG pipeline orchestration |
