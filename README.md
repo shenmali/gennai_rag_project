@@ -13,6 +13,22 @@ pinned: false
 
 Türkçe tıbbi sorulara cevap veren, RAG (Retrieval-Augmented Generation) teknolojisi ile geliştirilmiş akıllı chatbot sistemi.
 
+## 🚀 Canlı Demo - Hemen Test Edin!
+
+**Uygulama Hugging Face Spaces'te canlıda! Hemen deneyin:**
+
+### 👉 **[UYGULAMAYI KULLAN](https://huggingface.co/spaces/shenmali/gennai_dr)** 👈
+
+[![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/shenmali/gennai_dr)
+[![Streamlit](https://img.shields.io/badge/Streamlit-App-red)](https://huggingface.co/spaces/shenmali/gennai_dr)
+
+**Örnek Sorular:**
+- "Baş ağrısı için ne yapmalıyım?"
+- "Grip olduğumda ne yemem gerekir?"
+- "Yüksek tansiyon belirtileri nelerdir?"
+
+---
+
 ## 📋 Proje Amacı
 
 Bu proje, kullanıcıların sağlık ve tıp ile ilgili sorularına hızlı ve güvenilir cevaplar alabilmeleri için geliştirilmiş bir RAG tabanlı chatbot uygulamasıdır. 167.000'den fazla gerçek doktor-hasta soru-cevap verisi kullanılarak eğitilmiş sistem, kullanıcı sorularını analiz eder ve en ilgili tıbbi bilgileri bularak Gemini API ile doğal dilde cevaplar üretir.
@@ -375,11 +391,3 @@ Sorularınız için GitHub Issues bölümünü kullanabilirsiniz.
 ---
 
 **⚠️ Önemli Hatırlatma:** Bu uygulama sadece bilgilendirme amaçlıdır ve profesyonel tıbbi tavsiye, teşhis veya tedavi yerine geçmez. Sağlık sorunlarınız için mutlaka bir sağlık uzmanına başvurun.
-
----
-
-## 🌐 Canlı Demo
-
-**Deployment URL:** [https://huggingface.co/spaces/shenmali/gennai_dr](https://huggingface.co/spaces/shenmali/gennai_dr)
-
-Uygulamayı Hugging Face Spaces üzerinden kullanabilirsiniz.
