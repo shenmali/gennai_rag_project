@@ -38,6 +38,7 @@ st.markdown("""
         padding: 1rem;
         margin: 1rem 0;
         border-radius: 5px;
+        color: #856404;
     }
     .source-box {
         background-color: #f8f9fa;
@@ -45,6 +46,7 @@ st.markdown("""
         margin: 0.5rem 0;
         border-radius: 5px;
         border-left: 3px solid #007bff;
+        color: #212529;
     }
     .chat-message {
         padding: 1rem;
@@ -54,10 +56,12 @@ st.markdown("""
     .user-message {
         background-color: #e3f2fd;
         border-left: 4px solid #2196f3;
+        color: #0d47a1;
     }
     .bot-message {
         background-color: #f1f8e9;
         border-left: 4px solid #4caf50;
+        color: #1b5e20;
     }
 </style>
 """, unsafe_allow_html=True)
