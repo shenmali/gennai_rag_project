@@ -1,3 +1,14 @@
+---
+title: Tıbbi Soru-Cevap RAG Chatbot
+emoji: 🏥
+colorFrom: blue
+colorTo: green
+sdk: streamlit
+sdk_version: "1.29.0"
+app_file: app.py
+pinned: false
+---
+
 # 🏥 Tıbbi Soru-Cevap RAG Chatbot
 
 Türkçe tıbbi sorulara cevap veren, RAG (Retrieval-Augmented Generation) teknolojisi ile geliştirilmiş akıllı chatbot sistemi.
