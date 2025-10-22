@@ -59,7 +59,7 @@ config/secrets.py
 .DS_Store
 
 # Vector databases
-chroma_db/
+# chroma_db/  # Geçici olarak yorumlandı - Hugging Face'e yüklemek için
 *.index
 faiss_index/
 

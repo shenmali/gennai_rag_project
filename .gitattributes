@@ -1,4 +1,13 @@
-*.bin filter=lfs diff=lfs merge=lfs -text
-*.pkl filter=lfs diff=lfs merge=lfs -text
-*.sqlite3 filter=lfs diff=lfs merge=lfs -text
+# Git LFS Configuration for Hugging Face Spaces
+# Büyük dosyaları Git LFS ile track et
+# ChromaDB dosyaları
 chroma_db/** filter=lfs diff=lfs merge=lfs -text
+*.sqlite3 filter=lfs diff=lfs merge=lfs -text
+# Model dosyaları (opsiyonel)
+*.bin filter=lfs diff=lfs merge=lfs -text
+*.pt filter=lfs diff=lfs merge=lfs -text
+*.pth filter=lfs diff=lfs merge=lfs -text
+*.h5 filter=lfs diff=lfs merge=lfs -text
+*.pkl filter=lfs diff=lfs merge=lfs -text
+# Data dosyaları
+*.parquet filter=lfs diff=lfs merge=lfs -text

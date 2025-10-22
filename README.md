@@ -345,7 +345,7 @@ Gemini Pro yerine başka bir model kullanmak için `src/rag_pipeline.py` içinde
 
 ## 🤝 Katkıda Bulunma
 
-Bu proje Akbank GenAI Bootcamp kapsamında geliştirilmiştir.
+Bu proje eğitim amaçlı geliştirilmiştir.
 
 ## 📄 Lisans
 
@@ -353,14 +353,11 @@ Bu proje eğitim amaçlıdır. Veri seti CC BY-NC 4.0 lisansı altındadır (tic
 
 ## 📞 İletişim ve Destek
 
-Sorularınız için:
-- GitHub Issues bölümünü kullanın
-- Bootcamp mentorlarınıza danışın
+Sorularınız için GitHub Issues bölümünü kullanabilirsiniz.
 
 ## 🙏 Teşekkürler
 
 - **Veri Seti:** [alibayram/doktorsitesi](https://huggingface.co/datasets/alibayram/doktorsitesi)
-- **Akbank & GAIH:** Bootcamp organizasyonu için
 - **Google:** Gemini API için
 - **LangChain & ChromaDB:** Açık kaynak araçlar için
 
@@ -368,4 +365,10 @@ Sorularınız için:
 
 **⚠️ Önemli Hatırlatma:** Bu uygulama sadece bilgilendirme amaçlıdır ve profesyonel tıbbi tavsiye, teşhis veya tedavi yerine geçmez. Sağlık sorunlarınız için mutlaka bir sağlık uzmanına başvurun.
 
-**Deployment URL:** [Buraya deployment sonrası URL eklenecek]
+---
+
+## 🌐 Canlı Demo
+
+**Deployment URL:** [https://huggingface.co/spaces/shenmali/gennai_dr](https://huggingface.co/spaces/shenmali/gennai_dr)
+
+Uygulamayı Hugging Face Spaces üzerinden kullanabilirsiniz.
